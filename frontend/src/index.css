@@ -1,5 +1,313 @@
 @import "tailwindcss";
 
-body {
-  margin: 0;
+/* ---------------------------------------------------------------------------
+   artbots — 1970s risograph art-zine / hand-bound sketchbook
+   ---------------------------------------------------------------------------
+   Every colour, font, shadow and border weight lives here as a Tailwind v4
+   @theme token so the components can stay legible. If you want to reprint the
+   whole zine in a different ink, this is the only block you need to touch.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* Paper stock. Warm cream, one shade deeper for recessed surfaces. */
+  --color-paper: #f6f1e7;
+  --color-paper-deep: #ece3d2;
+  --color-paper-edge: #ded2bd;
+
+  /* Ink is a soft near-black brown -- never pure black. All body copy and
+     button labels sit on this so contrast stays honest against the pastels. */
+  --color-ink: #2b241d;
+  --color-ink-soft: #5c5045;
+  --color-ink-faint: #8a7c6d;
+
+  /* The five riso plates. Warm, slightly dirty pastels -- each one is light
+     enough that --color-ink clears 7:1 on top of it. */
+  --color-blush: #e8a79c;
+  --color-butter: #edcb84;
+  --color-sage: #a9bf9d;
+  --color-powder: #a0bcd2;
+  --color-lilac: #c0a8d4;
+
+  /* Destructive actions get a burnt brick that still belongs to the palette. */
+  --color-brick: #b8503f;
+  --color-brick-wash: #f0c7bf;
+
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Karla", "Helvetica Neue", sans-serif;
+
+  /* Hard, unblurred offset shadows -- misregistered plates, not elevation. */
+  --shadow-riso-sm: 3px 3px 0 0 #2b241d;
+  --shadow-riso: 5px 5px 0 0 #2b241d;
+  --shadow-riso-lg: 8px 8px 0 0 #2b241d;
+  --shadow-riso-press: 1px 1px 0 0 #2b241d;
+
+  --radius-riso: 3px;
+
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* --- Paper stock + grain overlay ---------------------------------------- */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    /* Faint plate-registration blooms in the corners so the cream isn't flat. */
+    background-image:
+      radial-gradient(60rem 40rem at 8% -10%, #edcb8433, transparent 70%),
+      radial-gradient(50rem 36rem at 105% 8%, #a0bcd233, transparent 70%),
+      radial-gradient(46rem 34rem at 20% 108%, #c0a8d42e, transparent 70%);
+    background-attachment: fixed;
+    /* Nothing in this zine is allowed to scroll sideways. */
+    overflow-x: hidden;
+  }
+
+  /* Grain. feTurbulence baked into a data URI -- no external image files. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.32;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)' opacity='0.42'/%3E%3C/svg%3E");
+  }
+
+  /* Selection reads like a highlighter dragged across the page. */
+  ::selection {
+    background: var(--color-butter);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 3px;
+  }
+}
+
+/* --- Repeated treatments ------------------------------------------------ */
+
+/* A card printed on the page: chunky border, hard shadow, and a per-instance
+   tilt driven by an inline --tilt so no two cards land square. */
+@utility riso-card {
+  position: relative;
+  border: 2.5px solid var(--color-ink);
+  border-radius: var(--radius-riso);
+  box-shadow: var(--shadow-riso);
+  rotate: var(--tilt, 0deg);
+  transition:
+    rotate 200ms var(--ease-snap),
+    translate 200ms var(--ease-snap),
+    box-shadow 200ms var(--ease-snap);
+}
+
+/* Lift and straighten -- the card gets picked up off the page. */
+@utility riso-card-interactive {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    rotate: 0deg;
+    translate: -3px -5px;
+    box-shadow: var(--shadow-riso-lg);
+  }
+
+  &:active {
+    rotate: 0deg;
+    translate: 2px 3px;
+    box-shadow: var(--shadow-riso-press);
+  }
+}
+
+/* A button that physically presses down into its own shadow on click. */
+@utility riso-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: var(--radius-riso);
+  box-shadow: var(--shadow-riso-sm);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    translate 150ms var(--ease-snap),
+    box-shadow 150ms var(--ease-snap),
+    background-color 150ms var(--ease-snap);
+
+  &:hover {
+    translate: -1px -2px;
+    box-shadow: var(--shadow-riso);
+  }
+
+  &:active {
+    translate: 3px 3px;
+    box-shadow: 0 0 0 0 var(--color-ink);
+  }
+}
+
+/* Small-caps editorial label -- the tiny type that runs above a heading. */
+@utility riso-label {
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-ink-soft);
+}
+
+/* Ruled index-card stock, with the red margin rule down the left. */
+@utility index-card {
+  background-color: #fbf7ee;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 1.6875rem,
+      #a0bcd2 1.6875rem 1.75rem
+    );
+  background-position: 0 2.5rem;
+}
+
+/* The punched holes on a ticket stub. Circles of paper stock with an ink ring,
+   straddling the left and right edges of whatever they're applied to. */
+@utility ticket-notch {
+  position: relative;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 1rem;
+    height: 1rem;
+    border: 2.5px solid var(--color-ink);
+    border-radius: 9999px;
+    background-color: var(--color-paper);
+    translate: -50% -50%;
+  }
+
+  &::before {
+    left: 0;
+  }
+
+  &::after {
+    left: 100%;
+  }
+}
+
+/* Ticket / postage-stamp edge: solid ink outline with a dashed perforation
+   rule set in from it. Drawn as a pseudo-element rather than an inset
+   box-shadow so a shadow-* utility can still put the hard offset underneath. */
+@utility stamp-edge {
+  position: relative;
+  border: 2.5px solid var(--color-ink);
+  border-radius: var(--radius-riso);
+  rotate: var(--tilt, 0deg);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 2px dashed color-mix(in oklab, var(--color-ink) 38%, transparent);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+}
+
+/* Form fields as fill-in-the-blank rules on the card. */
+@utility riso-field {
+  width: 100%;
+  border: 2.5px solid var(--color-ink);
+  border-radius: var(--radius-riso);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  padding: 0.55rem 0.75rem;
+  box-shadow: inset 2px 2px 0 0 #2b241d1f;
+  transition:
+    box-shadow 150ms var(--ease-snap),
+    background-color 150ms var(--ease-snap);
+
+  &::placeholder {
+    color: var(--color-ink-faint);
+    font-style: italic;
+  }
+
+  &:focus {
+    outline: none;
+    background-color: #fffdf7;
+    box-shadow:
+      inset 2px 2px 0 0 #2b241d14,
+      3px 3px 0 0 var(--color-ink);
+  }
+}
+
+/* The tab indicator sliding between Active and Archived. */
+@utility tab-slider {
+  transition: translate 220ms var(--ease-snap);
+}
+
+/* Dotted connector running down the spine of the prompt list. */
+@utility prompt-connector {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 1.5625rem;
+    top: 1.75rem;
+    bottom: 1.75rem;
+    width: 0;
+    border-left: 3px dotted color-mix(in oklab, var(--color-ink) 35%, transparent);
+  }
+}
+
+@utility handwrite {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 60, "WONK" 1;
+}
+
+/* --- Motion ------------------------------------------------------------- */
+
+@keyframes riso-nudge {
+  0%,
+  100% {
+    rotate: -2.5deg;
+  }
+  50% {
+    rotate: 2.5deg;
+  }
+}
+
+@utility today-flag {
+  animation: riso-nudge 2.6s var(--ease-snap) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Hover states still change, they just stop moving the furniture. */
+  .riso-card-interactive:hover,
+  .riso-card-interactive:active,
+  .riso-btn:hover,
+  .riso-btn:active {
+    translate: none;
+  }
 }
