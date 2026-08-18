@@ -120,7 +120,7 @@ function ChallengeDetail({ challenge, onBack }: ChallengeDetailProps) {
               />
               <button
                 type="submit"
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500"
+                className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-100 transition-colors hover:border-slate-500 hover:bg-slate-900"
               >
                 Submit Day {today.dayNumber}
               </button>

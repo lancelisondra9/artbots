@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,10 +17,15 @@ public class ChallengeController {
 
     private final ChallengeRepository challengeRepository;
     private final PromptRepository promptRepository;
+    private final SubmissionRepository submissionRepository;
 
-    public ChallengeController(ChallengeRepository challengeRepository, PromptRepository promptRepository) {
+    public ChallengeController(
+            ChallengeRepository challengeRepository,
+            PromptRepository promptRepository,
+            SubmissionRepository submissionRepository) {
         this.challengeRepository = challengeRepository;
         this.promptRepository = promptRepository;
+        this.submissionRepository = submissionRepository;
     }
 
     @GetMapping("/api/challenges")
@@ -64,5 +71,17 @@ public class ChallengeController {
         response.setDayNumber(dayNumber);
         response.setPromptText(todayPrompt != null ? todayPrompt.getText() : null);
         return response;
+    }
+
+    @Transactional
+    @DeleteMapping("/api/challenges/{id}")
+    public void deleteChallenge(@PathVariable Long id) {
+        // Postgres won't let us delete a Challenge row while Prompt or
+        // Submission rows still hold a foreign key pointing at it --
+        // both must go first, in this order, before the Challenge
+        // itself can be removed.
+        promptRepository.deleteByChallengeId(id);
+        submissionRepository.deleteByChallengeId(id);
+        challengeRepository.deleteById(id);
     }
 }
