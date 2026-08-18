@@ -2,21 +2,20 @@ package com.artbots.backend;
 
 import java.util.List;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-
 @RestController
 public class ChallengeController {
 
     private final ChallengeRepository challengeRepository;
+    private final PromptRepository promptRepository;
 
-
-    public ChallengeController(ChallengeRepository challengeRepository) {
+    public ChallengeController(ChallengeRepository challengeRepository, PromptRepository promptRepository) {
         this.challengeRepository = challengeRepository;
+        this.promptRepository = promptRepository;
     }
 
     @GetMapping("/api/challenges")
@@ -25,12 +24,21 @@ public class ChallengeController {
     }
 
     @PostMapping("/api/challenges")
-    public Challenge createChallenge(@RequestBody Challenge challenge) {
-        return challengeRepository.save(challenge);
+    public Challenge createChallenge(@RequestBody ChallengeRequest request) {
+        Challenge challenge = new Challenge();
+        challenge.setTitle(request.getTitle());
+        challenge.setStartDate(request.getStartDate());
+        challenge = challengeRepository.save(challenge);
+
+        String[] items = request.getPrompts().split(",");
+        for (int i = 0; i < items.length; i++) {
+            Prompt prompt = new Prompt();
+            prompt.setDayNumber(i + 1);
+            prompt.setText(items[i].trim());
+            prompt.setChallenge(challenge);
+            promptRepository.save(prompt);
+        }
+
+        return challenge;
     }
 }
-
-
-
-    
-

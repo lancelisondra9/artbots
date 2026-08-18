@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 
+type Prompt = {
+  id: number
+  dayNumber: number
+  text: string
+}
+
 type Challenge = {
   id: number
   title: string
   startDate: string
-  dayCount: number
+  prompts: Prompt[]
 }
 
 function App() {
@@ -20,7 +26,23 @@ function App() {
       const response = await fetch('http://localhost:8080/api/challenges', {
         headers: { Authorization: `Bearer ${token}` },
       })
+
+      // Checking response.ok BEFORE parsing means a 500/401/etc. never
+      // gets treated as if it were the real data -- we bail out here
+      // with a clear error instead of handing a malformed shape to
+      // setChallenges() and crashing the render later.
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
       const data = await response.json()
+
+      // Belt-and-suspenders: even on a 200, guard against the body not
+      // actually being an array before trusting it.
+      if (!Array.isArray(data)) {
+        throw new Error('Expected an array of challenges, got something else')
+      }
+
       setChallenges(data)
     }
 
@@ -63,7 +85,7 @@ function App() {
               >
                 <h2 className="text-lg font-semibold">{challenge.title}</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Starts {challenge.startDate} · {challenge.dayCount} days
+                  Starts {challenge.startDate} · {challenge.prompts.length} days
                 </p>
               </div>
             ))}

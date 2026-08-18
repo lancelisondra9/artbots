@@ -4,6 +4,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import java.util.List;
+import jakarta.persistence.OneToMany;
+
+
 
 
 @Entity
@@ -16,7 +20,9 @@ public class Challenge {
 
     private Long id;
     private String startDate;
-    private int dayCount;
+
+    @OneToMany(mappedBy = "challenge")
+    private List<Prompt> prompts;
 
 
     public Long getId() {
@@ -35,14 +41,6 @@ public class Challenge {
         this.startDate = startDate;
     }
 
-    public int getDayCount() {
-        return dayCount;
-    }
-
-    public void setDayCount(int dayCount) {
-        this.dayCount = dayCount;
-    }
-
     public String getTitle() {
         return title;
     }
@@ -50,6 +48,15 @@ public class Challenge {
     public void setTitle(String title) {
         this.title = title;
     }
+
+    public List<Prompt> getPrompts() {
+        return prompts;
+    }
+
+    public void setPrompts(List<Prompt> prompts) {
+        this.prompts = prompts;
+    }
+
 
 
 }
