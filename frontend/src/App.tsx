@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+ import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
+import { useAuth0 } from '@auth0/auth0-react'
 import './App.css'
 
 function App() {
@@ -11,22 +12,26 @@ function App() {
   // It starts as null because when the component first renders,
   // the fetch hasn't happened yet -- there's nothing to show.
   const [message, setMessage] = useState<string | null>(null)
+  const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
 
   // useEffect with an empty dependency array ([]) means "run this
   // once, right after the component mounts" -- not on every re-render.
   // That's exactly what we want for an initial data fetch.
   useEffect(() => {
-    fetch('http://localhost:8080/api/hello')
-      // fetch() resolves as soon as headers arrive, not when the body
-      // is ready -- so we explicitly wait on response.text() (or
-      // .json() for JSON responses) to get the actual body content.
-      .then((response) => response.text())
-      .then((text) => setMessage(text))
-      // If the backend is down, or -- more likely right now -- the
-      // browser blocks the request due to CORS, this catch fires and
-      // we'll see the error logged instead of a silent failure.
-      .catch((error) => console.error('Failed to fetch from backend:', error))
-  }, [])
+  if (!isAuthenticated) return
+
+  const fetchChallenges = async () => {
+    const token = await getAccessTokenSilently()
+    const response = await fetch('http://localhost:8080/api/challenges', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json()
+    setMessage(JSON.stringify(data))
+  }
+
+  fetchChallenges().catch((error) => console.error('Failed to fetch:', error))
+  }, [isAuthenticated, getAccessTokenSilently])
+
 
   return (
     <>
@@ -37,13 +42,24 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Get started</h1>
+          <h1 className="text-3xl font-bold text-blue-600">Get started</h1>
           <p>
             Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
           </p>
           {/* Renders "Loading..." until the fetch above resolves and
               setMessage() triggers a re-render with the real value. */}
           <p>Backend says: {message ?? 'Loading...'}</p>
+
+          {isAuthenticated ? ( //new code for auth0
+            <>
+              <p>Logged in as {user?.name}</p>
+              <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
+                Log Out
+              </button>
+            </>
+          ) : (
+            <button onClick={() => loginWithRedirect()}>Log In</button>
+          )}
         </div>
         <button
           type="button"
