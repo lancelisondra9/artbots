@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
+import ChallengeDetail from './ChallengeDetail'
 
 type Prompt = {
   id: number
@@ -17,6 +18,43 @@ type Challenge = {
 function App() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const { loginWithRedirect, logout, isAuthenticated, user, getAccessTokenSilently } = useAuth0()
+  const [newTitle, setNewTitle] = useState('')
+  const [newStartDate, setNewStartDate] = useState('')
+  const [newPrompts, setNewPrompts] = useState('')
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
+
+  const createChallenge = async (event: React.FormEvent) => {
+  event.preventDefault()
+
+  const token = await getAccessTokenSilently()
+  const response = await fetch('http://localhost:8080/api/challenges', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      title: newTitle,
+      startDate: newStartDate,
+      prompts: newPrompts,
+    }),
+  })
+
+    if (!response.ok) {
+      console.error('Failed to create challenge:', response.status)
+      return
+    }
+
+    // Clear the form, then refetch the list so the new card shows up.
+    setNewTitle('')
+    setNewStartDate('')
+    setNewPrompts('')
+    const updated = await fetch('http://localhost:8080/api/challenges', {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json())
+    setChallenges(updated)
+  }
+
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -73,25 +111,62 @@ function App() {
         )}
       </header>
 
-      <main className="px-6 py-10">
-        {challenges.length === 0 ? (
-          <p className="text-slate-400">No challenges yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {challenges.map((challenge) => (
-              <div
-                key={challenge.id}
-                className="rounded-lg border border-slate-800 bg-slate-900 p-4"
-              >
-                <h2 className="text-lg font-semibold">{challenge.title}</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Starts {challenge.startDate} · {challenge.prompts.length} days
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+      {selectedChallenge ? (
+        <ChallengeDetail
+          challenge={selectedChallenge}
+          onBack={() => setSelectedChallenge(null)}
+        />
+      ) : (
+        <main className="px-6 py-10">
+          <form onSubmit={createChallenge} className="mb-8 flex flex-col gap-3 max-w-md">
+            <input
+              type="text"
+              placeholder="Challenge title"
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+              className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+            />
+            <input
+              type="date"
+              value={newStartDate}
+              onChange={(event) => setNewStartDate(event.target.value)}
+              className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+            />
+            <textarea
+              placeholder="cat, dog, forest, ocean, mountain..."
+              value={newPrompts}
+              onChange={(event) => setNewPrompts(event.target.value)}
+              rows={3}
+              className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium hover:bg-blue-500"
+            >
+              Create Challenge
+            </button>
+          </form>
+
+          {challenges.length === 0 ? (
+            <p className="text-slate-400">No challenges yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {challenges.map((challenge) => (
+                <div
+                  key={challenge.id}
+                  onClick={() => setSelectedChallenge(challenge)}
+                  className="cursor-pointer rounded-lg border border-slate-800 bg-slate-900 p-4 hover:border-slate-600"
+                >
+                  <h2 className="text-lg font-semibold">{challenge.title}</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Starts {challenge.startDate} · {challenge.prompts.length} days
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      )}
     </div>
   )
 }
