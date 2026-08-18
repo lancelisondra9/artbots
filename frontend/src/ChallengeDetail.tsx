@@ -32,6 +32,21 @@ function stampTilt(dayNumber: number): string {
   return STAMP_TILTS[Math.abs(dayNumber) % STAMP_TILTS.length]
 }
 
+// The backend puts its reason for a rejected upload (wrong type, too big) in
+// the error body -- worth digging out, since it's what the artist needs to
+// hear. Falls back to the bare status if the body isn't the usual shape.
+async function readUploadError(response: Response): Promise<string> {
+  try {
+    const body = await response.json()
+    if (typeof body?.message === 'string' && body.message) {
+      return body.message
+    }
+  } catch {
+    // Not JSON -- nothing to pull out of it.
+  }
+  return `Upload failed with status ${response.status}.`
+}
+
 // A scribbled ring, drawn around the current day so it can't be missed.
 function ScribbleRing({ className = '' }: { className?: string }) {
   return (
@@ -49,8 +64,24 @@ function ScribbleRing({ className = '' }: { className?: string }) {
 function ChallengeDetail({ challenge, onBack }: ChallengeDetailProps) {
   const { getAccessTokenSilently } = useAuth0()
   const [today, setToday] = useState<TodayResponse | null>(null)
-  const [submissionUrl, setSubmissionUrl] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+
+  // The preview runs off a blob URL, which the browser holds in memory until
+  // it's revoked -- so every new pick (and the unmount) tears the old one down.
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(selectedFile)
+    setPreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [selectedFile])
 
   useEffect(() => {
     const fetchToday = async () => {
@@ -73,29 +104,38 @@ function ChallengeDetail({ challenge, onBack }: ChallengeDetailProps) {
 
   const submitSubmission = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!today) return
+    if (!today || !selectedFile) return
 
-    const token = await getAccessTokenSilently()
-    const response = await fetch('http://localhost:8080/api/submissions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        url: submissionUrl,
-        dayNumber: today.dayNumber,
-        challengeId: challenge.id,
-      }),
-    })
+    setUploading(true)
+    setUploadError(null)
 
-    if (!response.ok) {
-      console.error('Failed to submit:', response.status)
-      return
+    try {
+      const token = await getAccessTokenSilently()
+      const formData = new FormData()
+      formData.append('image', selectedFile)
+      formData.append('dayNumber', String(today.dayNumber))
+      formData.append('challengeId', String(challenge.id))
+
+      // No Content-Type header on purpose: only the browser can write the
+      // multipart boundary, and setting the header by hand wipes it out.
+      const response = await fetch('http://localhost:8080/api/submissions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(await readUploadError(response))
+      }
+
+      setSelectedFile(null)
+      setSubmitted(true)
+    } catch (error) {
+      console.error('Failed to submit:', error)
+      setUploadError(error instanceof Error ? error.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
     }
-
-    setSubmissionUrl('')
-    setSubmitted(true)
   }
 
   // Display-only: the prompts already came down with the challenge, this
@@ -182,21 +222,54 @@ function ChallengeDetail({ challenge, onBack }: ChallengeDetailProps) {
               onSubmit={submitSubmission}
               className="mt-7 flex max-w-md flex-col gap-3"
             >
-              <label className="block">
+              <div>
                 <span className="riso-label">Your piece</span>
-                <input
-                  type="text"
-                  placeholder="Image URL"
-                  value={submissionUrl}
-                  onChange={(event) => setSubmissionUrl(event.target.value)}
-                  className="riso-field mt-1.5"
+                {/* The browser's own file control can't be styled, so it hides
+                    inside the field and the label does the clicking. */}
+                <label className="riso-field mt-1.5 flex cursor-pointer items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      setSelectedFile(event.target.files?.[0] ?? null)
+                      setUploadError(null)
+                    }}
+                    className="sr-only"
+                  />
+                  <span className="riso-btn shrink-0 bg-paper-deep px-3 py-1.5 text-xs tracking-[0.12em] uppercase">
+                    Choose image
+                  </span>
+                  <span
+                    className={`font-body min-w-0 truncate text-sm ${
+                      selectedFile ? 'text-ink' : 'text-ink-faint italic'
+                    }`}
+                  >
+                    {selectedFile ? selectedFile.name : 'No file chosen'}
+                  </span>
+                </label>
+              </div>
+
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Preview of the piece you're about to submit"
+                  className="rounded-riso max-h-56 w-auto self-start border-[2.5px] border-ink object-contain shadow-riso-sm"
                 />
-              </label>
+              )}
+
+              {uploadError && (
+                <div className="rounded-riso border-[2.5px] border-ink bg-blush px-4 py-3 shadow-riso-sm">
+                  <p className="riso-label text-[0.6rem]">Didn't go through</p>
+                  <p className="font-body mt-0.5 text-sm font-bold text-ink">{uploadError}</p>
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="riso-btn self-start bg-paper px-5 py-2.5 text-sm tracking-[0.1em] uppercase hover:bg-sage"
+                disabled={!selectedFile || uploading}
+                className="riso-btn self-start bg-paper px-5 py-2.5 text-sm tracking-[0.1em] uppercase hover:bg-sage disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-none disabled:hover:bg-paper disabled:hover:shadow-riso-sm"
               >
-                Submit Day {today.dayNumber}
+                {uploading ? 'Uploading...' : `Submit Day ${today.dayNumber}`}
               </button>
             </form>
           )}

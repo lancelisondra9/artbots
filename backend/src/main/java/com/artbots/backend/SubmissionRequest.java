@@ -1,18 +1,11 @@
 package com.artbots.backend;
 
+// The non-file half of a submission. Bound off the multipart form fields that
+// travel alongside the image part.
 public class SubmissionRequest {
 
-    private String url;
     private int dayNumber;
     private Long challengeId;
-
-    public String getUrl() {
-        return url;
-    }
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
 
     public int getDayNumber() {
         return dayNumber;

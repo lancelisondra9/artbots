@@ -1,24 +1,26 @@
 package com.artbots.backend;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 
 @Entity
 
 public class Submission {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    
+
 
 
 
     private Long id;
-    private String url;
+    private String storedFilename;
+    private String originalFilename;
+    private String contentType;
+    private long sizeBytes;
     private int dayNumber;
     private String submitDate;
     //private LocalDateTime localDate;
@@ -33,12 +35,44 @@ public class Submission {
         this.id = id;
     }
 
-    public String getUrl() {
-        return url;
+    public String getStoredFilename() {
+        return storedFilename;
     }
 
-    public void setUrl(String url) {
-        this.url = url;
+    public void setStoredFilename(String storedFilename) {
+        this.storedFilename = storedFilename;
+    }
+
+    public String getOriginalFilename() {
+        return originalFilename;
+    }
+
+    public void setOriginalFilename(String originalFilename) {
+        this.originalFilename = originalFilename;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(long sizeBytes) {
+        this.sizeBytes = sizeBytes;
+    }
+
+    // Not a column -- it just rides along in the JSON so the frontend has a
+    // single thing to point an <img> at, rather than assembling the path
+    // itself out of the id.
+    @Transient
+    public String getImageUrl() {
+        return id == null ? null : "/api/submissions/" + id + "/image";
     }
 
     public int getDayNumber() {
@@ -64,9 +98,6 @@ public class Submission {
     public void setChallenge(Challenge challenge) {
         this.challenge = challenge;
     }
-
-
-
 
 
 
