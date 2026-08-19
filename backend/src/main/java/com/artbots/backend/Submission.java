@@ -20,7 +20,10 @@ public class Submission {
     private String storedFilename;
     private String originalFilename;
     private String contentType;
-    private long sizeBytes;
+    // Boxed on purpose: a primitive maps to a NOT NULL column, and ddl-auto
+    // can't add one of those to a table that already has rows. Submissions
+    // from before the image upload existed simply have no size.
+    private Long sizeBytes;
     private int dayNumber;
     private String submitDate;
     //private LocalDateTime localDate;
@@ -59,11 +62,11 @@ public class Submission {
         this.contentType = contentType;
     }
 
-    public long getSizeBytes() {
+    public Long getSizeBytes() {
         return sizeBytes;
     }
 
-    public void setSizeBytes(long sizeBytes) {
+    public void setSizeBytes(Long sizeBytes) {
         this.sizeBytes = sizeBytes;
     }
 
